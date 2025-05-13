@@ -6,6 +6,7 @@ export default function Home() {
     <div>
       <Ola />
       <MusicPlayer />
+      <p>teste</p>
     </div>
   );
 }
