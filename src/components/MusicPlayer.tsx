@@ -28,9 +28,10 @@ interface Playlist {
 }
 
 export default function DeezerCarousel() {
+  // Mudança principal: inicializar isPlaying como true para autoplay
   const [tracks, setTracks] = useState<Track[]>([]);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true); // Inicializado como true para autoplay
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +74,8 @@ export default function DeezerCarousel() {
           setPreviewIndex(nextIndex);
           setAnimationDirection('down');
           scrollToSlide(nextIndex);
+          // Indicar que o autoplay será acionado em toque
+          console.log("Touch para próxima faixa - autoplay será acionado");
         }
       } else {
         // Swipe para baixo - slide anterior
@@ -81,6 +84,8 @@ export default function DeezerCarousel() {
           setPreviewIndex(prevIndex);
           setAnimationDirection('up');
           scrollToSlide(prevIndex);
+          // Indicar que o autoplay será acionado em toque
+          console.log("Touch para faixa anterior - autoplay será acionado");
         }
       }
       
@@ -113,6 +118,8 @@ export default function DeezerCarousel() {
         setPreviewIndex(nextIndex);
         setAnimationDirection('down');
         scrollToSlide(nextIndex);
+        // Indicar que o autoplay deve ser acionado
+        console.log("Scroll para próxima faixa - autoplay será acionado");
       }
     } else {
       // Scroll para cima - slide anterior
@@ -121,6 +128,8 @@ export default function DeezerCarousel() {
         setPreviewIndex(prevIndex);
         setAnimationDirection('up');
         scrollToSlide(prevIndex);
+        // Indicar que o autoplay deve ser acionado
+        console.log("Scroll para faixa anterior - autoplay será acionado");
       }
     }
     
@@ -189,6 +198,21 @@ export default function DeezerCarousel() {
 
     fetchMusicFromDeezer();
   }, []);
+
+  // Adicionado novo useEffect para iniciar a reprodução quando as tracks forem carregadas
+  useEffect(() => {
+    if (tracks.length > 0 && audioRef.current) {
+      // Garante que o src está definido
+      audioRef.current.src = tracks[currentTrackIndex].preview;
+      
+      // Tenta iniciar a reprodução automaticamente
+      audioRef.current.play().catch(err => {
+        console.error("Erro ao iniciar reprodução automática:", err);
+        // Em caso de erro (como políticas de autoplay do navegador), mantenha isPlaying como false
+        setIsPlaying(false);
+      });
+    }
+  }, [tracks, currentTrackIndex]);
 
   // Controles de reprodução de áudio
   useEffect(() => {
@@ -275,15 +299,18 @@ export default function DeezerCarousel() {
       setPreviewIndex(null);
       setAnimationDirection(null);
       
-      // Se estiver tocando, atualize o áudio
-      if (isPlaying && audioRef.current && tracks[previewIndex]) {
+      // Iniciar reprodução automática quando mudar de faixa por scroll
+      if (audioRef.current && tracks[previewIndex]) {
         audioRef.current.src = tracks[previewIndex].preview;
+        // Começar a tocar automaticamente quando navegar por scroll
+        setIsPlaying(true);
         audioRef.current.play().catch(err => {
           console.error("Erro ao reproduzir áudio:", err);
+          setIsPlaying(false);
         });
       }
     }
-  }, [previewIndex, isScrolling, transitionComplete, isPlaying, tracks]);
+  }, [previewIndex, isScrolling, transitionComplete, tracks]);
 
   // Configurar os event listeners de wheel e touch
   useEffect(() => {
@@ -307,6 +334,8 @@ export default function DeezerCarousel() {
           setPreviewIndex(nextIndex);
           setAnimationDirection('down');
           scrollToSlide(nextIndex);
+          // Indicar que o autoplay deve ser acionado
+          console.log("Scroll wheel para próxima faixa - autoplay será acionado");
         }
       } else {
         // Scroll para cima - slide anterior
@@ -315,6 +344,8 @@ export default function DeezerCarousel() {
           setPreviewIndex(prevIndex);
           setAnimationDirection('up');
           scrollToSlide(prevIndex);
+          // Indicar que o autoplay deve ser acionado
+          console.log("Scroll wheel para faixa anterior - autoplay será acionado");
         }
       }
       
@@ -331,6 +362,9 @@ export default function DeezerCarousel() {
     
     // Adicionar event listeners com opções adequadas
     carousel.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    // Adicionar um log para debug
+    console.log("Event listeners configurados. Autoplay ao fazer scroll está ativado.");
     
     return () => {
       if (carousel) {
@@ -509,7 +543,7 @@ export default function DeezerCarousel() {
                 
                 {/* Botões de controle - mostrados apenas para a faixa atual */}
                 {currentTrackIndex === index && (
-                  <div className="flex items-center justify-center space-x-8 mt-6 transition-all duration-500">
+                  <div className="flex items-center justify-center space-x-8 transition-all duration-500">
                     <button 
                       onClick={handlePrevTrack}
                       className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 text-white transform transition-transform hover:scale-110"
@@ -538,7 +572,7 @@ export default function DeezerCarousel() {
             </div>
             
             {/* Indicador de navegação */}
-            <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+            <div className="absolute bottom-10 left-0 right-0 flex justify-center">
               <div className="flex space-x-2">
                 {tracks.map((_, i) => (
                   <div 
