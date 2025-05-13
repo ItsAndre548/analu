@@ -425,6 +425,7 @@ export default function DeezerCarousel() {
             }}
           >
             <div className="max-w-6xl w-full h-full flex flex-col md:flex-row items-center justify-center gap-8 p-4">
+              <p className="text-xl font-medium text-gradient" style={{ color: "var(--primary-color)" }}>Nos temos até uma playlist só nossa, acredita?</p>
               {/* Capa do álbum com transição */}
               <div className="w-full md:w-1/2 flex justify-center items-center transition-transform duration-700">
                 <img 

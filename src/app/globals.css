@@ -2,7 +2,47 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #223240;
+  --primary-color: #60BF81;
+  --secondary-color: #3B8C66;
+  --third-color: #347355;
+}
+.box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+  height: 400px;
+  width: 400px;
+  border: 3px solid #0000;
+  border-radius: 12px;
+  background: linear-gradient(#131219, #131219) padding-box, linear-gradient(
+        var(--angle),
+        #070707,
+        #60BF81
+      ) border-box;
+  animation: 8s rotate linear infinite;
+}
+
+@keyframes rotate {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+
+@layer utilities {
+  /* .text-gradient {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  } */
 }
 
 @theme inline {
