@@ -43,20 +43,21 @@ export default function DeezerCarousel() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
+  // Inicializar com um array vazio que será preenchido mais tarde
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Função para lidar com início de toque (touch)
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const touchStartY = e.touches[0].clientY;
-    // Armazenar o valor em um estado ou ref para usar em handleTouchEnd
-    (e.currentTarget as any).touchStartY = touchStartY;
+    // Armazenar o valor em um dataset do elemento
+    e.currentTarget.dataset.touchStartY = touchStartY.toString();
   };
   
   // Função para lidar com fim de toque (touch)
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (isScrolling || !transitionComplete) return;
     
-    const touchStartY = (e.currentTarget as any).touchStartY || 0;
+    const touchStartY = parseInt(e.currentTarget.dataset.touchStartY || '0');
     const touchEndY = e.changedTouches[0].clientY;
     const diff = touchStartY - touchEndY;
     
@@ -159,7 +160,7 @@ export default function DeezerCarousel() {
         if (data && data.tracks && data.tracks.data) {
           setTracks(data.tracks.data);
           // Inicializar o array de refs com o tamanho correto
-          slideRefs.current = data.tracks.data.map(() => null);
+          slideRefs.current = Array(data.tracks.data.length).fill(null);
         } else {
           // Caso não tenha encontrado músicas na playlist, busca tracks populares
           const chartsUrl = `${corsProxy}https://api.deezer.com/chart/0/tracks`;
@@ -170,9 +171,13 @@ export default function DeezerCarousel() {
           }
           
           const chartsData = await chartsResponse.json();
-          setTracks(chartsData.data || []);
-          // Inicializar o array de refs com o tamanho correto
-          slideRefs.current = chartsData.data.map(() => null);
+          if (chartsData.data) {
+            setTracks(chartsData.data);
+            // Inicializar o array de refs com o tamanho correto
+            slideRefs.current = Array(chartsData.data.length).fill(null);
+          } else {
+            throw new Error("Formato de dados inválido");
+          }
         }
       } catch (err) {
         console.error("Erro ao buscar músicas:", err);
@@ -238,10 +243,11 @@ export default function DeezerCarousel() {
       const windowHeight = window.innerHeight;
       
       // Atualizar a posição do scroll para usar nas animações
-      setScrollPosition(scrollY / windowHeight);
+      const newScrollPosition = scrollY / windowHeight;
+      setScrollPosition(newScrollPosition);
       
       // Determinar qual é o próximo slide baseado na direção do scroll
-      const targetIndex = Math.round(scrollPosition);
+      const targetIndex = Math.round(newScrollPosition);
       if (targetIndex !== currentTrackIndex && targetIndex >= 0 && targetIndex < tracks.length) {
         setPreviewIndex(targetIndex);
         
@@ -259,7 +265,7 @@ export default function DeezerCarousel() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [scrollPosition, currentTrackIndex, tracks.length]);
+  }, [currentTrackIndex, tracks.length]);
 
   // Detectar quando uma transição termina para mudar de faixa
   useEffect(() => {
@@ -270,7 +276,7 @@ export default function DeezerCarousel() {
       setAnimationDirection(null);
       
       // Se estiver tocando, atualize o áudio
-      if (isPlaying && audioRef.current) {
+      if (isPlaying && audioRef.current && tracks[previewIndex]) {
         audioRef.current.src = tracks[previewIndex].preview;
         audioRef.current.play().catch(err => {
           console.error("Erro ao reproduzir áudio:", err);
@@ -284,18 +290,51 @@ export default function DeezerCarousel() {
     const carousel = carouselRef.current;
     if (!carousel) return;
     
-    // Adicionar event listeners com opções adequadas
-    carousel.addEventListener('wheel', (e) => {
+    // Função auxiliar para o evento de roda
+    const wheelHandler = (e: WheelEvent) => {
       e.preventDefault();
-      handleWheel(e as unknown as React.WheelEvent<HTMLDivElement>);
-    }, { passive: false });
+      
+      if (isScrolling || !transitionComplete) return;
+      
+      setIsScrolling(true);
+      setTransitionComplete(false);
+      
+      // Determinar a direção do scroll
+      if (e.deltaY > 0) {
+        // Scroll para baixo - próximo slide
+        if (currentTrackIndex < tracks.length - 1) {
+          const nextIndex = currentTrackIndex + 1;
+          setPreviewIndex(nextIndex);
+          setAnimationDirection('down');
+          scrollToSlide(nextIndex);
+        }
+      } else {
+        // Scroll para cima - slide anterior
+        if (currentTrackIndex > 0) {
+          const prevIndex = currentTrackIndex - 1;
+          setPreviewIndex(prevIndex);
+          setAnimationDirection('up');
+          scrollToSlide(prevIndex);
+        }
+      }
+      
+      // Prevenir múltiplos eventos de scroll
+      setTimeout(() => {
+        setIsScrolling(false);
+      }, 500);
+      
+      // Permitir nova transição depois de completar a atual
+      setTimeout(() => {
+        setTransitionComplete(true);
+      }, 1000);
+    };
+    
+    // Adicionar event listeners com opções adequadas
+    carousel.addEventListener('wheel', wheelHandler, { passive: false });
     
     return () => {
       if (carousel) {
-        carousel.removeEventListener('wheel', (e) => {
-          e.preventDefault();
-          handleWheel(e as unknown as React.WheelEvent<HTMLDivElement>);
-        });
+        carousel.removeEventListener('wheel', wheelHandler);
       }
     };
   }, [currentTrackIndex, tracks.length, isScrolling, transitionComplete]);
@@ -413,7 +452,7 @@ export default function DeezerCarousel() {
         {tracks.map((track, index) => (
           <div 
             key={track.id}
-            ref={el => slideRefs.current[index] = el}
+            ref={el => {slideRefs.current[index] = el}}
             className={`w-full h-screen absolute top-0 left-0 flex flex-col justify-center items-center p-4 transition-all duration-1000 ${
               index === currentTrackIndex || index === previewIndex
                 ? 'opacity-100 visible' 
@@ -425,7 +464,7 @@ export default function DeezerCarousel() {
             }}
           >
             <div className="max-w-6xl w-full h-full flex flex-col md:flex-row items-center justify-center gap-8 p-4">
-              <p className="text-xl font-medium text-gradient" style={{ color: "var(--primary-color)" }}>Nos temos até uma playlist só nossa, acredita?</p>
+              <div className="text-xl font-medium text-blue-500 mb-4">Nos temos até uma playlist só nossa, acredita?</div>
               {/* Capa do álbum com transição */}
               <div className="w-full md:w-1/2 flex justify-center items-center transition-transform duration-700">
                 <img 
