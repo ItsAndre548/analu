@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, ChevronDown, ChevronUp } from "lucide-react";
 
 // Interface para as tracks do Deezer
 interface Track {
